@@ -116,10 +116,16 @@
             }, 600);
         }
 
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('data:text/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCdmZXRjaCcsIGV2ZW50ID0+IHsgZXZlbnQucmVzcG9uZFdpdGgoZmV0Y2goZXZlbnQucmVxdWVzdCkpOyB9KTs=');
-        }
+        
+            
+        
     </script>
+    <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js');
+  }
+    </script>
+    
 </body>
   </html>
   
