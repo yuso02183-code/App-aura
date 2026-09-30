@@ -1,10 +1,10 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Nhật Ký Lái Thuyền - Game Sinh Tồn 2D</title>
- <link rel="manifest" href="manifest.json"
+    <link rel="manifest" href="manifest.json">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; touch-action: none; }
         body { background: #1a1a1a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; color: white; }
@@ -23,9 +23,10 @@
         <div class="game-title">⚓ NHẬT KÝ LÁI THUYỀN</div>
         <div class="stat-bar" id="status">Trạng thái: Trên đảo</div>
         <div class="stat-bar" id="boatStatus">Thuyền: Thuyền Thúng (Nhỏ)</div>
+        <div class="stat-bar" id="bagStatus">Trang bị: Không đeo túi (5 ô)</div>
     </div>
 
-    <div id="msg">SÓNG LỚN ĐÁNH LẬT THUYỀN!<br><span style="font-size:15px; color:#ddd; font-weight:normal;">Đang hồi sinh về Cột Mốc Lưu...</span></div>
+    <div id="msg">SÓNG LỚN ĐÁNH LẬT THUYỀN!<br><span style="font-size:14px; color:#ccc;">Đang hồi sinh...</span></div>
 
     <div id="joystick-container">
         <div id="joystick-stick"></div>
@@ -34,146 +35,51 @@
     <canvas id="gameCanvas"></canvas>
 
     <script>
-        const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
 
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
         }
+        window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
-        window.addEventListener("resize", resizeCanvas);
 
-        // Thế giới game
-        const island = { x: 0, y: 0, radius: 250 };
-        const savePoint = { x: 0, y: -50, radius: 25 };
+        // 1. Quản lý Balo / Túi đồ
+        const BAG_TYPES = {
+            NONE: { name: "Không đeo túi", slots: 5 },
+            SMALL: { name: "Túi nhỏ", slots: 10 },
+            MEDIUM: { name: "Balo vừa", slots: 20 },
+            LARGE: { name: "Balo lớn", slots: 35 }
+        };
+        let currentBag = BAG_TYPES.NONE;
 
-        // Người chơi
+        // 2. Thông số người chơi
         const player = {
-            x: 0,
-            y: 0,
-            speed: 3,
-            isBoat: false,
-            respawnX: 0,
-            respawnY: -50
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            isBoat: false
         };
 
-        // Điều khiển Joystick
-        let joyX = 0, joyY = 0;
-        const joyContainer = document.getElementById("joystick-container");
-        const joyStick = document.getElementById("joystick-stick");
+        const savePoint = {
+            x: canvas.width / 2,
+            y: canvas.height / 2
+        };
 
-        joyContainer.addEventListener("touchstart", handleTouch);
-        joyContainer.addEventListener("touchmove", handleTouch);
-        joyContainer.addEventListener("touchend", () => {
-            joyX = 0; joyY = 0;
-            joyStick.style.transform = `translate(0px, 0px)`;
-        });
-
-        function handleTouch(e) {
-            e.preventDefault();
-            const rect = joyContainer.getBoundingClientRect();
-            const touch = e.touches[0];
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-            
-            let dx = touch.clientX - centerX;
-            let dy = touch.clientY - centerY;
-            const dist = Math.hypot(dx, dy);
-            const maxDist = 40;
-
-            if (dist > maxDist) {
-                dx = (dx / dist) * maxDist;
-                dy = (dy / dist) * maxDist;
-            }
-
-            joyStick.style.transform = `translate(${dx}px, ${dy}px)`;
-            joyX = dx / maxDist;
-            joyY = dy / maxDist;
-        }
-
-        // Bàn phím cho PC
-        const keys = {};
-        window.addEventListener("keydown", e => keys[e.key] = true);
-        window.addEventListener("keyup", e => keys[e.key] = false);
-
-        let isRespawning = false;
-
+        // 3. Vòng lặp Game (Game Loop)
         function update() {
-            if (isRespawning) return;
-
-            let moveX = joyX;
-            let moveY = joyY;
-
-            if (keys["ArrowUp"] || keys["w"]) moveY = -1;
-            if (keys["ArrowDown"] || keys["s"]) moveY = 1;
-            if (keys["ArrowLeft"] || keys["a"]) moveX = -1;
-            if (keys["ArrowRight"] || keys["d"]) moveX = 1;
-
-            player.x += moveX * player.speed;
-            player.y += moveY * player.speed;
-
-            const distToCenter = Math.hypot(player.x, player.y);
-
-            if (distToCenter < island.radius) {
-                player.isBoat = false;
-                document.getElementById("status").innerText = "Trạng thái: Trên đảo";
-            } else {
-                player.isBoat = true;
-                document.getElementById("status").innerText = "Trạng thái: Đang lái thuyền";
-            }
-
-            // Ra xa bờ > 600px bị lật thuyền
-            if (player.isBoat && distToCenter > 600) {
-                triggerCapized();
-            }
-        }
-
-        function triggerCapized() {
-            isRespawning = true;
-            document.getElementById("msg").style.display = "block";
-
-            setTimeout(() => {
-                player.x = player.respawnX;
-                player.y = player.respawnY;
-                document.getElementById("msg").style.display = "none";
-                isRespawning = false;
-            }, 2000);
+            // Cập nhật logic game tại đây
         }
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            ctx.save();
-            ctx.translate(canvas.width / 2 - player.x, canvas.height / 2 - player.y);
-
-            // 1. Đại Dương
-            ctx.fillStyle = "#1e3d59";
-            ctx.fillRect(player.x - canvas.width, player.y - canvas.height, canvas.width * 2, canvas.height * 2);
-
-            // Vùng sóng lớn
-            ctx.beginPath();
-            ctx.arc(0, 0, 600, 0, Math.PI * 2);
-            ctx.strokeStyle = "rgba(255, 50, 50, 0.4)";
-            ctx.lineWidth = 8;
-            ctx.stroke();
-
-            // 2. Hòn Đảo
-            ctx.beginPath();
-            ctx.arc(island.x, island.y, island.radius, 0, Math.PI * 2);
-            ctx.fillStyle = "#27ae60";
-            ctx.fill();
-
-            // 3. Cột Mốc Lưu (Save Point)
-            ctx.beginPath();
-            ctx.arc(savePoint.x, savePoint.y, savePoint.radius, 0, Math.PI * 2);
-            ctx.fillStyle = "#f39c12";
-            ctx.fill();
+            // Vẽ điểm lưu
             ctx.fillStyle = "#fff";
             ctx.font = "bold 11px sans-serif";
-            ctx.fillText("SAVE", savePoint.x - 14, savePoint.y + 4);
+            ctx.fillText("SAVE", savePoint.x - 14, savePoint.y - 20);
 
-            // 4. Nhân Vật / Thuyền
+            // Vẽ Nhân Vật / Thuyền
             ctx.beginPath();
             if (!player.isBoat) {
                 ctx.arc(player.x, player.y, 14, 0, Math.PI * 2);
@@ -183,25 +89,24 @@
                 ctx.fillStyle = "#8e44ad";
             }
             ctx.fill();
-
-            ctx.restore();
-
-            requestAnimationFrame(gameLoop);
         }
 
         function gameLoop() {
             update();
             draw();
+            requestAnimationFrame(gameLoop);
         }
-         gameLoop();
 
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('Service Worker OK'))
-          .catch(err => console.log('Service Worker Lỗi:', err));
-      });
-    }
-  </script>
+        gameLoop();
+
+        // 4. Đăng ký Service Worker cho PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker OK'))
+                    .catch(err => console.log('Service Worker Lỗi:', err));
+            });
+        }
+    </script>
 </body>
 </html>
