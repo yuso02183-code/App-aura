@@ -6,15 +6,81 @@
     <title>Nhật Ký Lái Thuyền - Game Sinh Tồn 2D</title>
     <link rel="manifest" href="manifest.json">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; touch-action: none; }
-        body { background: #1a1a1a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; color: white; }
-        #gameCanvas { width: 100vw; height: 100vh; display: block; }
-        #ui { position: absolute; top: 10px; left: 10px; pointer-events: none; }
-        .game-title { font-size: 18px; font-weight: bold; color: #f39c12; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); margin-bottom: 8px; }
-        .stat-bar { background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 8px; margin-bottom: 5px; font-size: 14px; border: 1px solid rgba(255,255,255,0.1); }
-        #joystick-container { position: absolute; bottom: 30px; left: 30px; width: 120px; height: 120px; background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; display: flex; justify-content: center; align-items: center; }
-        #joystick-stick { width: 50px; height: 50px; background: rgba(255,255,255,0.7); border-radius: 50%; position: absolute; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
-        #msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 22px; font-weight: bold; color: #ff4d4d; background: rgba(0,0,0,0.85); padding: 20px 30px; border-radius: 12px; border: 1px solid #ff4d4d; display: none; text-align: center; box-shadow: 0 0 20px rgba(255,77,77,0.4); }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: none;
+        }
+        body {
+            background: #1a1a1a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            color: white;
+        }
+        #gameCanvas {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            pointer-events: none;
+        }
+        .game-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #f39c12;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+            margin-bottom: 8px;
+        }
+        .stat-bar {
+            background: rgba(0,0,0,0.6);
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            font-size: 14px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        #joystick-container {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255,255,255,0.15);
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #joystick-stick {
+            width: 50px;
+            height: 50px;
+            background: rgba(255,255,255,0.7);
+            border-radius: 50%;
+            position: absolute;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        #msg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 22px;
+            font-weight: bold;
+            color: #ff4d4d;
+            background: rgba(0,0,0,0.85);
+            padding: 20px 30px;
+            border-radius: 12px;
+            border: 1px solid #ff4d4d;
+            display: none;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(255,77,77,0.4);
+        }
     </style>
 </head>
 <body>
@@ -26,7 +92,7 @@
         <div class="stat-bar" id="bagStatus">Trang bị: Không đeo túi (5 ô)</div>
     </div>
 
-    <div id="msg">SÓNG LỚN ĐÁNH LẬT THUYỀN!<br><span style="font-size:14px; color:#ccc;">Đang hồi sinh...</span></div>
+    <div id="msg">SÓNG LỚN ĐÁNH LẬT THUYỀN!<br><span style="font-size:14px; color:#ccc;">Đang hồi sinh về Cột Mốc Lưu...</span></div>
 
     <div id="joystick-container">
         <div id="joystick-stick"></div>
@@ -58,6 +124,7 @@
         const player = {
             x: canvas.width / 2,
             y: canvas.height / 2,
+            speed: 3,
             isBoat: false
         };
 
@@ -66,20 +133,59 @@
             y: canvas.height / 2
         };
 
-        // 3. Vòng lặp Game (Game Loop)
+        // 3. Xử lý Joystick
+        const joystickContainer = document.getElementById('joystick-container');
+        const joystickStick = document.getElementById('joystick-stick');
+        let moveX = 0;
+        let moveY = 0;
+        let isDragging = false;
+
+        joystickContainer.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            handleTouch(e.touches[0]);
+        });
+
+        joystickContainer.addEventListener('touchmove', (e) => {
+            if (isDragging) handleTouch(e.touches[0]);
+        });
+
+        window.addEventListener('touchend', () => {
+            isDragging = false;
+            moveX = 0;
+            moveY = 0;
+            joystickStick.style.transform = `translate(0px, 0px)`;
+        });
+
+        function handleTouch(touch) {
+            const rect = joystickContainer.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const deltaX = touch.clientX - centerX;
+            const deltaY = touch.clientY - centerY;
+            const distance = Math.min(Math.hypot(deltaX, deltaY), 40);
+            const angle = Math.atan2(deltaY, deltaX);
+
+            moveX = Math.cos(angle);
+            moveY = Math.sin(angle);
+
+            joystickStick.style.transform = `translate(${Math.cos(angle) * distance}px, ${Math.sin(angle) * distance}px)`;
+        }
+
+        // 4. Vòng lặp Game
         function update() {
-            // Cập nhật logic game tại đây
+            player.x += moveX * player.speed;
+            player.y += moveY * player.speed;
         }
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Vẽ điểm lưu
+            // Cột mốc lưu
             ctx.fillStyle = "#fff";
             ctx.font = "bold 11px sans-serif";
             ctx.fillText("SAVE", savePoint.x - 14, savePoint.y - 20);
 
-            // Vẽ Nhân Vật / Thuyền
+            // Nhân vật / Thuyền
             ctx.beginPath();
             if (!player.isBoat) {
                 ctx.arc(player.x, player.y, 14, 0, Math.PI * 2);
@@ -99,7 +205,7 @@
 
         gameLoop();
 
-        // 4. Đăng ký Service Worker cho PWA
+        // 5. Đăng ký Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
