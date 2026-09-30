@@ -65,6 +65,21 @@
             position: absolute;
             box-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
+        #fishBtn {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            padding: 16px 28px;
+            font-size: 16px;
+            font-weight: bold;
+            background: #27ae60;
+            color: white;
+            border: 2px solid #2ecc71;
+            border-radius: 50px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            pointer-events: auto;
+            cursor: pointer;
+        }
         #msg {
             position: absolute;
             top: 50%;
@@ -90,9 +105,12 @@
         <div class="stat-bar" id="status">Trạng thái: Trên đảo</div>
         <div class="stat-bar" id="boatStatus">Thuyền: Thuyền Thúng (Nhỏ)</div>
         <div class="stat-bar" id="bagStatus">Trang bị: Không đeo túi (5 ô)</div>
+        <div class="stat-bar" id="inventoryStatus">Kho đồ: 0/5 item</div>
     </div>
 
-    <div id="msg">SÓNG LỚN ĐÁNH LẬT THUYỀN!<br><span style="font-size:14px; color:#ccc;">Đang hồi sinh về Cột Mốc Lưu...</span></div>
+    <button id="fishBtn">CÂU CÁ 🎣</button>
+
+    <div id="msg">SÓNG LỚN ĐÁNH LẬT THUYỀN!<br><span style="font-size:14px; color:#ccc;">Đang hồi sinh...</span></div>
 
     <div id="joystick-container">
         <div id="joystick-stick"></div>
@@ -111,7 +129,7 @@
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
-        // 1. Quản lý Balo / Túi đồ
+        // 1. Quản lý Balo & Túi đồ
         const BAG_TYPES = {
             NONE: { name: "Không đeo túi", slots: 5 },
             SMALL: { name: "Túi nhỏ", slots: 10 },
@@ -119,6 +137,7 @@
             LARGE: { name: "Balo lớn", slots: 35 }
         };
         let currentBag = BAG_TYPES.NONE;
+        let inventory = [];
 
         // 2. Thông số người chơi
         const player = {
@@ -133,7 +152,7 @@
             y: canvas.height / 2
         };
 
-        // 3. Xử lý Joystick
+        // 3. Xử lý Joystick di chuyển
         const joystickContainer = document.getElementById('joystick-container');
         const joystickStick = document.getElementById('joystick-stick');
         let moveX = 0;
@@ -171,7 +190,42 @@
             joystickStick.style.transform = `translate(${Math.cos(angle) * distance}px, ${Math.sin(angle) * distance}px)`;
         }
 
-        // 4. Vòng lặp Game
+        // 4. Xử lý Tính năng Câu Cá 🎣
+        let isFishing = false;
+        const fishBtn = document.getElementById('fishBtn');
+        const inventoryStatus = document.getElementById('inventoryStatus');
+
+        fishBtn.addEventListener('click', () => {
+            if (isFishing) return;
+
+            // Kiểm tra túi đồ đầy
+            if (inventory.length >= currentBag.slots) {
+                alert(`Túi đồ đã đầy (${inventory.length}/${currentBag.slots})! Hãy nâng cấp Balo hoặc tháo bớt đồ.`);
+                return;
+            }
+
+            isFishing = true;
+            fishBtn.innerText = "ĐANG THẢ MỒI...";
+            fishBtn.style.background = "#e67e22";
+
+            const waitTime = Math.floor(Math.random() * 2000) + 2000;
+
+            setTimeout(() => {
+                const fishList = ["Cá Rô", "Cá Chép", "Cá Trắm", "Tôm Hùm", "Giày cũ", "Bao nilon"];
+                const caughtItem = fishList[Math.floor(Math.random() * fishList.length)];
+
+                inventory.push(caughtItem);
+                inventoryStatus.innerText = `Kho đồ: ${inventory.length}/${currentBag.slots} item`;
+
+                alert(`🎉 Bạn đã câu được: ${caughtItem}!`);
+
+                fishBtn.innerText = "CÂU CÁ 🎣";
+                fishBtn.style.background = "#27ae60";
+                isFishing = false;
+            }, waitTime);
+        });
+
+        // 5. Vòng lặp Game
         function update() {
             player.x += moveX * player.speed;
             player.y += moveY * player.speed;
@@ -205,7 +259,7 @@
 
         gameLoop();
 
-        // 5. Đăng ký Service Worker
+        // 6. Đăng ký Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
@@ -215,4 +269,5 @@
         }
     </script>
 </body>
-</html>
+            </html>
+            
