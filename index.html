@@ -6,96 +6,16 @@
     <title>Nhật Ký Lái Thuyền - Game Sinh Tồn 2D</title>
     <link rel="manifest" href="manifest.json">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            touch-action: none;
-        }
-        body {
-            background: #1a1a1a;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            overflow: hidden;
-            color: white;
-        }
-        #gameCanvas {
-            width: 100vw;
-            height: 100vh;
-            display: block;
-        }
-        #ui {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            pointer-events: none;
-        }
-        .game-title {
-            font-size: 18px;
-            font-weight: bold;
-            color: #f39c12;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
-            margin-bottom: 8px;
-        }
-        .stat-bar {
-            background: rgba(0,0,0,0.6);
-            padding: 8px 12px;
-            border-radius: 8px;
-            margin-bottom: 5px;
-            font-size: 14px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        #joystick-container {
-            position: absolute;
-            bottom: 30px;
-            left: 30px;
-            width: 120px;
-            height: 120px;
-            background: rgba(255,255,255,0.15);
-            border: 2px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        #joystick-stick {
-            width: 50px;
-            height: 50px;
-            background: rgba(255,255,255,0.7);
-            border-radius: 50%;
-            position: absolute;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
-        }
-        #fishBtn {
-            position: absolute;
-            bottom: 30px;
-            right: 30px;
-            padding: 16px 28px;
-            font-size: 16px;
-            font-weight: bold;
-            background: #27ae60;
-            color: white;
-            border: 2px solid #2ecc71;
-            border-radius: 50px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-            pointer-events: auto;
-            cursor: pointer;
-        }
-        #msg {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 22px;
-            font-weight: bold;
-            color: #ff4d4d;
-            background: rgba(0,0,0,0.85);
-            padding: 20px 30px;
-            border-radius: 12px;
-            border: 1px solid #ff4d4d;
-            display: none;
-            text-align: center;
-            box-shadow: 0 0 20px rgba(255,77,77,0.4);
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; touch-action: none; }
+        body { background: #1a1a1a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; color: white; }
+        #gameCanvas { width: 100vw; height: 100vh; display: block; }
+        #ui { position: absolute; top: 10px; left: 10px; pointer-events: none; }
+        .game-title { font-size: 18px; font-weight: bold; color: #f39c12; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); margin-bottom: 8px; }
+        .stat-bar { background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 8px; margin-bottom: 5px; font-size: 14px; border: 1px solid rgba(255,255,255,0.1); }
+        #joystick-container { position: absolute; bottom: 30px; left: 30px; width: 120px; height: 120px; background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; display: flex; justify-content: center; align-items: center; }
+        #joystick-stick { width: 50px; height: 50px; background: rgba(255,255,255,0.7); border-radius: 50%; position: absolute; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        #fishBtn { position: absolute; bottom: 30px; right: 30px; padding: 16px 28px; font-size: 16px; font-weight: bold; background: #27ae60; color: white; border: 2px solid #2ecc71; border-radius: 50px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); pointer-events: auto; cursor: pointer; }
+        #msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 22px; font-weight: bold; color: #ff4d4d; background: rgba(0,0,0,0.85); padding: 20px 30px; border-radius: 12px; border: 1px solid #ff4d4d; display: none; text-align: center; box-shadow: 0 0 20px rgba(255,77,77,0.4); }
     </style>
 </head>
 <body>
@@ -155,9 +75,7 @@
         // 3. Xử lý Joystick di chuyển
         const joystickContainer = document.getElementById('joystick-container');
         const joystickStick = document.getElementById('joystick-stick');
-        let moveX = 0;
-        let moveY = 0;
-        let isDragging = false;
+        let moveX = 0, moveY = 0, isDragging = false;
 
         joystickContainer.addEventListener('touchstart', (e) => {
             isDragging = true;
@@ -170,8 +88,7 @@
 
         window.addEventListener('touchend', () => {
             isDragging = false;
-            moveX = 0;
-            moveY = 0;
+            moveX = 0; moveY = 0;
             joystickStick.style.transform = `translate(0px, 0px)`;
         });
 
@@ -198,7 +115,6 @@
         fishBtn.addEventListener('click', () => {
             if (isFishing) return;
 
-            // Kiểm tra túi đồ đầy
             if (inventory.length >= currentBag.slots) {
                 alert(`Túi đồ đã đầy (${inventory.length}/${currentBag.slots})! Hãy nâng cấp Balo hoặc tháo bớt đồ.`);
                 return;
@@ -269,5 +185,5 @@
         }
     </script>
 </body>
-            </html>
-            
+    </html>
+    
