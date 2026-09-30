@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Nhật Ký Lái Thuyền - Game Sinh Tồn 2D</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; touch-action: none; }
+        body { background: #1a1a1a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; color: white; }
+        #gameCanvas { width: 100vw; height: 100vh; display: block; }
+        #ui { position: absolute; top: 10px; left: 10px; pointer-events: none; }
+        .game-title { font-size: 18px; font-weight: bold; color: #f39c12; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); margin-bottom: 8px; }
+        .stat-bar { background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 8px; margin-bottom: 5px; font-size: 14px; border: 1px solid rgba(255,255,255,0.1); }
+        #joystick-container { position: absolute; bottom: 30px; left: 30px; width: 120px; height: 120px; background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; display: flex; justify-content: center; align-items: center; }
+        #joystick-stick { width: 50px; height: 50px; background: rgba(255,255,255,0.7); border-radius: 50%; position: absolute; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        #msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 22px; font-weight: bold; color: #ff4d4d; background: rgba(0,0,0,0.85); padding: 20px 30px; border-radius: 12px; border: 1px solid #ff4d4d; display: none; text-align: center; box-shadow: 0 0 20px rgba(255,77,77,0.4); }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <div class="game-title">⚓ NHẬT KÝ LÁI THUYỀN</div>
+        <div class="stat-bar" id="status">Trạng thái: Trên đảo</div>
+        <div class="stat-bar" id="boatStatus">Thuyền: Thuyền Thúng (Nhỏ)</div>
+    </div>
+
+    <div id="msg">SÓNG LỚN ĐÁNH LẬT THUYỀN!<br><span style="font-size:15px; color:#ddd; font-weight:normal;">Đang hồi sinh về Cột Mốc Lưu...</span></div>
+
+    <div id="joystick-container">
+        <div id="joystick-stick"></div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener("resize", resizeCanvas);
+
+        // Thế giới game
+        const island = { x: 0, y: 0, radius: 250 };
+        const savePoint = { x: 0, y: -50, radius: 25 };
+
+        // Người chơi
+        const player = {
+            x: 0,
+            y: 0,
+            speed: 3,
+            isBoat: false,
+            respawnX: 0,
+            respawnY: -50
+        };
+
+        // Điều khiển Joystick
+        let joyX = 0, joyY = 0;
+        const joyContainer = document.getElementById("joystick-container");
+        const joyStick = document.getElementById("joystick-stick");
+
+        joyContainer.addEventListener("touchstart", handleTouch);
+        joyContainer.addEventListener("touchmove", handleTouch);
+        joyContainer.addEventListener("touchend", () => {
+            joyX = 0; joyY = 0;
+            joyStick.style.transform = `translate(0px, 0px)`;
+        });
+
+        function handleTouch(e) {
+            e.preventDefault();
+            const rect = joyContainer.getBoundingClientRect();
+            const touch = e.touches[0];
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+            const dist = Math.hypot(dx, dy);
+            const maxDist = 40;
+
+            if (dist > maxDist) {
+                dx = (dx / dist) * maxDist;
+                dy = (dy / dist) * maxDist;
+            }
+
+            joyStick.style.transform = `translate(${dx}px, ${dy}px)`;
+            joyX = dx / maxDist;
+            joyY = dy / maxDist;
+        }
+
+        // Bàn phím cho PC
+        const keys = {};
+        window.addEventListener("keydown", e => keys[e.key] = true);
+        window.addEventListener("keyup", e => keys[e.key] = false);
+
+        let isRespawning = false;
+
+        function update() {
+            if (isRespawning) return;
+
+            let moveX = joyX;
+            let moveY = joyY;
+
+            if (keys["ArrowUp"] || keys["w"]) moveY = -1;
+            if (keys["ArrowDown"] || keys["s"]) moveY = 1;
+            if (keys["ArrowLeft"] || keys["a"]) moveX = -1;
+            if (keys["ArrowRight"] || keys["d"]) moveX = 1;
+
+            player.x += moveX * player.speed;
+            player.y += moveY * player.speed;
+
+            const distToCenter = Math.hypot(player.x, player.y);
+
+            if (distToCenter < island.radius) {
+                player.isBoat = false;
+                document.getElementById("status").innerText = "Trạng thái: Trên đảo";
+            } else {
+                player.isBoat = true;
+                document.getElementById("status").innerText = "Trạng thái: Đang lái thuyền";
+            }
+
+            // Ra xa bờ > 600px bị lật thuyền
+            if (player.isBoat && distToCenter > 600) {
+                triggerCapized();
+            }
+        }
+
+        function triggerCapized() {
+            isRespawning = true;
+            document.getElementById("msg").style.display = "block";
+
+            setTimeout(() => {
+                player.x = player.respawnX;
+                player.y = player.respawnY;
+                document.getElementById("msg").style.display = "none";
+                isRespawning = false;
+            }, 2000);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            ctx.translate(canvas.width / 2 - player.x, canvas.height / 2 - player.y);
+
+            // 1. Đại Dương
+            ctx.fillStyle = "#1e3d59";
+            ctx.fillRect(player.x - canvas.width, player.y - canvas.height, canvas.width * 2, canvas.height * 2);
+
+            // Vùng sóng lớn
+            ctx.beginPath();
+            ctx.arc(0, 0, 600, 0, Math.PI * 2);
+            ctx.strokeStyle = "rgba(255, 50, 50, 0.4)";
+            ctx.lineWidth = 8;
+            ctx.stroke();
+
+            // 2. Hòn Đảo
+            ctx.beginPath();
+            ctx.arc(island.x, island.y, island.radius, 0, Math.PI * 2);
+            ctx.fillStyle = "#27ae60";
+            ctx.fill();
+
+            // 3. Cột Mốc Lưu (Save Point)
+            ctx.beginPath();
+            ctx.arc(savePoint.x, savePoint.y, savePoint.radius, 0, Math.PI * 2);
+            ctx.fillStyle = "#f39c12";
+            ctx.fill();
+            ctx.fillStyle = "#fff";
+            ctx.font = "bold 11px sans-serif";
+            ctx.fillText("SAVE", savePoint.x - 14, savePoint.y + 4);
+
+            // 4. Nhân Vật / Thuyền
+            ctx.beginPath();
+            if (!player.isBoat) {
+                ctx.arc(player.x, player.y, 14, 0, Math.PI * 2);
+                ctx.fillStyle = "#e74c3c";
+            } else {
+                ctx.ellipse(player.x, player.y, 22, 13, 0, 0, Math.PI * 2);
+                ctx.fillStyle = "#8e44ad";
+            }
+            ctx.fill();
+
+            ctx.restore();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+        }
+
+        gameLoop();
+    </script>
+</body>
+  </html>
+  
