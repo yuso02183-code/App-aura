@@ -1,189 +1,162 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Nhật Ký Lái Thuyền - Game Sinh Tồn 2D</title>
-    <link rel="manifest" href="manifest.json">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; touch-action: none; }
-        body { background: #1a1a1a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; color: white; }
-        #gameCanvas { width: 100vw; height: 100vh; display: block; }
-        #ui { position: absolute; top: 10px; left: 10px; pointer-events: none; }
-        .game-title { font-size: 18px; font-weight: bold; color: #f39c12; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); margin-bottom: 8px; }
-        .stat-bar { background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 8px; margin-bottom: 5px; font-size: 14px; border: 1px solid rgba(255,255,255,0.1); }
-        #joystick-container { position: absolute; bottom: 30px; left: 30px; width: 120px; height: 120px; background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; display: flex; justify-content: center; align-items: center; }
-        #joystick-stick { width: 50px; height: 50px; background: rgba(255,255,255,0.7); border-radius: 50%; position: absolute; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
-        #fishBtn { position: absolute; bottom: 30px; right: 30px; padding: 16px 28px; font-size: 16px; font-weight: bold; background: #27ae60; color: white; border: 2px solid #2ecc71; border-radius: 50px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); pointer-events: auto; cursor: pointer; }
-        #msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 22px; font-weight: bold; color: #ff4d4d; background: rgba(0,0,0,0.85); padding: 20px 30px; border-radius: 12px; border: 1px solid #ff4d4d; display: none; text-align: center; box-shadow: 0 0 20px rgba(255,77,77,0.4); }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Chicken Invaders PWA</title>
+  
+  <!-- Cấu hình PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b0c10">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+
+  <style>
+    * { touch-action: manipulation; }
+    body {
+      margin: 0; padding: 0;
+      background-color: #0b0c10; color: #fff;
+      font-family: sans-serif;
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      min-height: 100vh; overflow: hidden;
+    }
+    h1 { color: #66fcf1; margin: 5px 0; font-size: 20px; }
+    canvas {
+      border: 2px solid #66fcf1;
+      border-radius: 10px;
+      background-color: #000;
+      touch-action: none;
+    }
+    p { font-size: 12px; color: #aaa; margin-top: 5px; }
+  </style>
 </head>
 <body>
 
-    <div id="ui">
-        <div class="game-title">⚓ NHẬT KÝ LÁI THUYỀN</div>
-        <div class="stat-bar" id="status">Trạng thái: Trên đảo</div>
-        <div class="stat-bar" id="boatStatus">Thuyền: Thuyền Thúng (Nhỏ)</div>
-        <div class="stat-bar" id="bagStatus">Trang bị: Không đeo túi (5 ô)</div>
-        <div class="stat-bar" id="inventoryStatus">Kho đồ: 0/5 item</div>
-    </div>
-
-    <button id="fishBtn">CÂU CÁ 🎣</button>
-
-    <div id="msg">SÓNG LỚN ĐÁNH LẬT THUYỀN!<br><span style="font-size:14px; color:#ccc;">Đang hồi sinh...</span></div>
-
-    <div id="joystick-container">
-        <div id="joystick-stick"></div>
-    </div>
-
-    <canvas id="gameCanvas"></canvas>
+  <h1>🐔 BẮN GÀ OFFLINE 🚀</h1>
+  <canvas id="gameCanvas" width="360" height="500"></canvas>
+  <p>Vuốt màn hình để di chuyển tàu!</p>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
 
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+    const player = {
+      x: canvas.width / 2 - 20,
+      y: canvas.height - 60,
+      width: 40,
+      height: 40,
+      speed: 6,
+      score: 0
+    };
+
+    let bullets = [];
+    let chickens = [];
+    let gameOver = false;
+
+    function createChickens() {
+      for (let r = 0; r < 4; r++) {
+        for (let c = 0; c < 6; c++) {
+          chickens.push({
+            x: 35 + c * 50,
+            y: 40 + r * 45,
+            width: 30,
+            height: 30,
+            alive: true
+          });
         }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
+      }
+    }
+    createChickens();
 
-        // 1. Quản lý Balo & Túi đồ
-        const BAG_TYPES = {
-            NONE: { name: "Không đeo túi", slots: 5 },
-            SMALL: { name: "Túi nhỏ", slots: 10 },
-            MEDIUM: { name: "Balo vừa", slots: 20 },
-            LARGE: { name: "Balo lớn", slots: 35 }
-        };
-        let currentBag = BAG_TYPES.NONE;
-        let inventory = [];
+    // Điều khiển bằng vuốt cảm ứng trên điện thoại
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const touchX = e.touches[0].clientX - rect.left;
+      player.x = touchX - player.width / 2;
+    });
 
-        // 2. Thông số người chơi
-        const player = {
-            x: canvas.width / 2,
-            y: canvas.height / 2,
-            speed: 3,
-            isBoat: false
-        };
-
-        const savePoint = {
-            x: canvas.width / 2,
-            y: canvas.height / 2
-        };
-
-        // 3. Xử lý Joystick di chuyển
-        const joystickContainer = document.getElementById('joystick-container');
-        const joystickStick = document.getElementById('joystick-stick');
-        let moveX = 0, moveY = 0, isDragging = false;
-
-        joystickContainer.addEventListener('touchstart', (e) => {
-            isDragging = true;
-            handleTouch(e.touches[0]);
+    // Tự động bắn đạn liên tục
+    setInterval(() => {
+      if (!gameOver) {
+        bullets.push({
+          x: player.x + player.width / 2 - 3,
+          y: player.y,
+          width: 6,
+          height: 15,
+          speed: 8
         });
+      }
+    }, 250);
 
-        joystickContainer.addEventListener('touchmove', (e) => {
-            if (isDragging) handleTouch(e.touches[0]);
+    function update() {
+      if (gameOver) return;
+
+      bullets.forEach((bullet, index) => {
+        bullet.y -= bullet.speed;
+        if (bullet.y < 0) bullets.splice(index, 1);
+      });
+
+      bullets.forEach((bullet, bIndex) => {
+        chickens.forEach((chicken) => {
+          if (chicken.alive &&
+              bullet.x < chicken.x + chicken.width &&
+              bullet.x + bullet.width > chicken.x &&
+              bullet.y < chicken.y + chicken.height &&
+              bullet.y + bullet.height > chicken.y) {
+            chicken.alive = false;
+            bullets.splice(bIndex, 1);
+            player.score += 10;
+          }
         });
+      });
+    }
 
-        window.addEventListener('touchend', () => {
-            isDragging = false;
-            moveX = 0; moveY = 0;
-            joystickStick.style.transform = `translate(0px, 0px)`;
-        });
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        function handleTouch(touch) {
-            const rect = joystickContainer.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-            const deltaX = touch.clientX - centerX;
-            const deltaY = touch.clientY - centerY;
-            const distance = Math.min(Math.hypot(deltaX, deltaY), 40);
-            const angle = Math.atan2(deltaY, deltaX);
+      // Vẽ tàu
+      ctx.fillStyle = '#66fcf1';
+      ctx.beginPath();
+      ctx.moveTo(player.x + player.width / 2, player.y);
+      ctx.lineTo(player.x, player.y + player.height);
+      ctx.lineTo(player.x + player.width, player.y + player.height);
+      ctx.fill();
 
-            moveX = Math.cos(angle);
-            moveY = Math.sin(angle);
+      // Vẽ đạn
+      ctx.fillStyle = '#ff4d4d';
+      bullets.forEach(b => ctx.fillRect(b.x, b.y, b.width, b.height));
 
-            joystickStick.style.transform = `translate(${Math.cos(angle) * distance}px, ${Math.sin(angle) * distance}px)`;
-        }
+      // Vẽ gà 🐔
+      ctx.font = '24px serif';
+      chickens.forEach(c => {
+        if (c.alive) ctx.fillText('🐔', c.x, c.y + c.height);
+      });
 
-        // 4. Xử lý Tính năng Câu Cá 🎣
-        let isFishing = false;
-        const fishBtn = document.getElementById('fishBtn');
-        const inventoryStatus = document.getElementById('inventoryStatus');
+      ctx.fillStyle = '#fff';
+      ctx.font = '16px Arial';
+      ctx.fillText('Điểm: ' + player.score, 10, 25);
+    }
 
-        fishBtn.addEventListener('click', () => {
-            if (isFishing) return;
-
-            if (inventory.length >= currentBag.slots) {
-                alert(`Túi đồ đã đầy (${inventory.length}/${currentBag.slots})! Hãy nâng cấp Balo hoặc tháo bớt đồ.`);
-                return;
-            }
-
-            isFishing = true;
-            fishBtn.innerText = "ĐANG THẢ MỒI...";
-            fishBtn.style.background = "#e67e22";
-
-            const waitTime = Math.floor(Math.random() * 2000) + 2000;
-
-            setTimeout(() => {
-                const fishList = ["Cá Rô", "Cá Chép", "Cá Trắm", "Tôm Hùm", "Giày cũ", "Bao nilon"];
-                const caughtItem = fishList[Math.floor(Math.random() * fishList.length)];
-
-                inventory.push(caughtItem);
-                inventoryStatus.innerText = `Kho đồ: ${inventory.length}/${currentBag.slots} item`;
-
-                alert(`🎉 Bạn đã câu được: ${caughtItem}!`);
-
-                fishBtn.innerText = "CÂU CÁ 🎣";
-                fishBtn.style.background = "#27ae60";
-                isFishing = false;
-            }, waitTime);
-        });
-
-        // 5. Vòng lặp Game
-        function update() {
-            player.x += moveX * player.speed;
-            player.y += moveY * player.speed;
-        }
-
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Cột mốc lưu
-            ctx.fillStyle = "#fff";
-            ctx.font = "bold 11px sans-serif";
-            ctx.fillText("SAVE", savePoint.x - 14, savePoint.y - 20);
-
-            // Nhân vật / Thuyền
-            ctx.beginPath();
-            if (!player.isBoat) {
-                ctx.arc(player.x, player.y, 14, 0, Math.PI * 2);
-                ctx.fillStyle = "#e74c3c";
-            } else {
-                ctx.ellipse(player.x, player.y, 22, 13, 0, 0, Math.PI * 2);
-                ctx.fillStyle = "#8e44ad";
-            }
-            ctx.fill();
-        }
-
-        function gameLoop() {
-            update();
-            draw();
-            requestAnimationFrame(gameLoop);
-        }
-
-        gameLoop();
-
-        // 6. Đăng ký Service Worker
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Service Worker OK'))
-                    .catch(err => console.log('Service Worker Lỗi:', err));
-            });
-        }
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+    gameLoop();
     </script>
-</body>
-    </html>
     
+
+  <!-- Đăng ký Service Worker để chạy Offline -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => console.log('SW đã hoạt động!'))
+          .catch(err => console.log('Lỗi SW:', err));
+      });
+    }
+  </script>
+</body>
+</html>
